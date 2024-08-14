@@ -18,5 +18,3 @@ def get_page(url: str) -> str:
     return resp.text
 
 
-if __name__ == "__main__":
-    get_page('https://github.com/Lexxyla/alx-backend-storage/')
