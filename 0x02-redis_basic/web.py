@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Web cache and URL access tracker using Redis with decorators.
+Web cache and URL access tracker using Redis.
 """
 
 import requests
 import redis
-from functools import wraps
+from typing import Callable
 
 
 class Cache:
@@ -15,33 +15,36 @@ class Cache:
         """Initialize the connection to the Redis server."""
         self._redis = redis.Redis()
 
-    def count_and_cache(self, func: Callable) -> Callable:
+    def get_page(self, url: str) -> str:
         """
-        Decorator to count URL accesses and cache the result.
+        Get the HTML content of a URL, track access count, and cache with expiration.
+        
         Args:
-            func (Callable): The function to be decorated.
+            url (str): The URL to fetch.
+        
         Returns:
-            Callable: The wrapped function with counting and caching.
+            str: The HTML content of the URL.
         """
-        @wraps(func)
-        def wrapper(url: str) -> str:
-            cache_key = f"count:{url}"
-            self._redis.incr(cache_key)
-            cached_page = self._redis.get(url)
-            if cached_page:
-                return cached_page.decode('utf-8')
-
-            page_content = func(url)
-            self._redis.setex(url, 10, page_content)
-            return page_content
-
-        return wrapper
+        cache_key = f"count:{url}"
+        self._redis.incr(cache_key)
+        
+        cached_page = self._redis.get(url)
+        if cached_page:
+            return cached_page.decode('utf-8')
+        
+        response = requests.get(url)
+        page_content = response.text
+        
+        self._redis.setex(url, 10, page_content)
+        return page_content
 
     def get_count(self, url: str) -> int:
         """
         Get the access count of a URL.
+        
         Args:
             url (str): The URL to get the count for.
+        
         Returns:
             int: The access count.
         """
@@ -49,17 +52,9 @@ class Cache:
         return int(count) if count else 0
 
 
-cache = Cache()
+if __name__ == "__main__":
+    cache = Cache()
 
-
-@cache.count_and_cache
-def get_page(url: str) -> str:
-    """
-    Get the HTML content of a URL.
-    Args:
-        url (str): The URL to fetch.
-    Returns:
-        str: The HTML content of the URL.
-    """
-    response = requests.get(url)
-    return response.text
+    url = "http://slowwly.robertomurray.co.uk"
+    print(cache.get_page(url))
+    print(f"URL accessed {cache.get_count(url)} times")
