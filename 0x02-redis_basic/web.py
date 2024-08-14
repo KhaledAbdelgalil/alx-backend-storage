@@ -46,11 +46,3 @@ class Cache:
         """
         count = self._redis.get(f"count:{url}")
         return int(count) if count else 0
-
-
-if __name__ == "__main__":
-    cache = Cache()
-
-    url = "http://slowwly.robertomurray.co.uk"
-    print(cache.get_page(url))
-    print(f"URL accessed {cache.get_count(url)} times")
