@@ -1,23 +1,71 @@
 #!/usr/bin/env python3
-import redis
+"""
+Web cache and URL access tracker using Redis with decorators.
+"""
+
 import requests
-from typing import Optional
+import redis
+from functools import wraps
 
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+class Cache:
+    """Cache class to interact with Redis."""
+
+    def __init__(self):
+        """Initialize the connection to the Redis server."""
+        self._redis = redis.Redis()
+
+    def count_and_cache(self, func: Callable) -> Callable:
+        """
+        Decorator to count URL accesses and cache the result.
+        Args:
+            func (Callable): The function to be decorated.
+        Returns:
+            Callable: The wrapped function with counting and caching.
+        """
+        @wraps(func)
+        def wrapper(url: str) -> str:
+            cache_key = f"count:{url}"
+            self._redis.incr(cache_key)
+            cached_page = self._redis.get(url)
+            if cached_page:
+                return cached_page.decode('utf-8')
+
+            page_content = func(url)
+            self._redis.setex(url, 10, page_content)
+            return page_content
+
+        return wrapper
+
+    def get_count(self, url: str) -> int:
+        """
+        Get the access count of a URL.
+        Args:
+            url (str): The URL to get the count for.
+        Returns:
+            int: The access count.
+        """
+        count = self._redis.get(f"count:{url}")
+        return int(count) if count else 0
 
 
+cache = Cache()
+
+
+@cache.count_and_cache
 def get_page(url: str) -> str:
-    """Track how many times a particular URL was accessed, cache the result"""
-
-    cached_content: Optional[str] = r.get(f"cached:{url}")
-    if cached_content:
-        print("Cache hit. Returning cached content.")
-        return cached_content
-
+    """
+    Get the HTML content of a URL.
+    Args:
+        url (str): The URL to fetch.
+    Returns:
+        str: The HTML content of the URL.
+    """
     response = requests.get(url)
-    content = response.text
+    return response.text
 
-    r.incr(f"count:{url}")
-    r.setex(f"cached:{url}", 10, content)
 
-    return content
+if __name__ == "__main__":
+    url = "http://slowwly.robertomurray.co.uk"
+    print(get_page(url))
+    print(f"URL accessed {cache.get_count(url)} times")
