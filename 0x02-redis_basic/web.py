@@ -15,7 +15,6 @@ def get_page(url: str) -> str:
 
     cached_content = r.get(f"cached:{url}")
     if cached_content:
-        print("here")
         return cached_content.decode('utf-8')
 
     resp = requests.get(url)
@@ -27,4 +26,4 @@ def get_page(url: str) -> str:
 
 
 if __name__ == "__main__":
-    get_page('https://github.com/Lexxyla/alx-backend-storage/blob/main/0x02-redis_basic/web.py')
+    get_page('https://github.com/Lexxyla/alx-backend-storage/')
